@@ -17,16 +17,19 @@ FitPlot <- function(model, data, ...) {
     return()
 }
 
-pacman::p_load(TAM, psych, tidyverse, data.table)
+pacman::p_load(TAM, psych, tidyverse, data.table, GLDEX)
 data("data.fims.Aus.Jpn.scored")
 input = 
-  data.fims.Aus.Jpn.scored %>% select(starts_with("M")) %>%
-  select(-M1PTI21, -M1PTI14, -M1PTI12)
+  data.fims.Aus.Jpn.scored %>% select(starts_with("M")) 
+
 input %>% psych::describe()
+
+input %>% rowSums() %>% hist()
+input %>% rowSums() %>% GLDEX::fun.moments.r(normalise = "Y")
 
 Modeles = list("Rasch" = tam.mml,
                "2PL" = tam.mml.2pl,
-               "3PL"  =tam.mml.3pl)
+               "3PL"  = tam.mml.3pl)
 
 output = invoke_map(.f = Modeles, resp = input, verbose = F)
 outputFIT = map(.x = output, .f = IRT.modelfit)
@@ -41,4 +44,3 @@ output$Rasch %>% FitPlot(data = input)
 output$`2PL` %>% FitPlot(data = input)
 
 outputFIT$`2PL`$chisquare.itemfit
-
