@@ -1,5 +1,6 @@
 pacman::p_load(TAM, psych, tidyverse, data.table, mirt)
 
+data("data.cqc01")
 
 Modele = tam.fa(resp = data.cqc01,
                 irtmodel = "efa",
