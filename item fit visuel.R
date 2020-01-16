@@ -44,3 +44,4 @@ output$Rasch %>% FitPlot(data = input)
 output$`2PL` %>% FitPlot(data = input)
 
 outputFIT$`2PL`$chisquare.itemfit
+output$`2PL`$item_irt

@@ -9,7 +9,8 @@ contexte = data.fims.Aus.Jpn.scored %>% select(-starts_with("M")) %>%
 Modele =
   tam.mml.2pl(
     resp = input,
-    dataY = contexte, formulaY =  ~ SEX*country
+    dataY = contexte, 
+    formulaY =  ~ SEX*country
   )
 
 Modele$latreg_stand
@@ -46,15 +47,17 @@ MODI =
               group = contexte$country
               ) 
 
-SKOR = MODI %>% 
+SKOR = 
+  MODI %>% 
   tam.wle() %>% data.table() %>%
   inner_join(contexte %>%
                rowid_to_column(var = "pid")) %>% 
-  lm(formula = theta~SEX*country) %>% 
+  # lm(formula = theta~SEX*country) %>% 
+  lme4::lmer(formula = theta~SEX*country+(1|country)) %>% 
   broom::augment()
 
 cbind.data.frame(Scores %>% data.table() %>% select(thetha_reg = theta),
-                 SKOR %>% select(theta, .resid),
+                 SKOR %>% select(theta),
                  Modele_EAP=Modele$person$EAP,
                  MODI_EAP=MODI$person$EAP) %>%
   cor() %>% 
