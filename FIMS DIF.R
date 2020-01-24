@@ -1,9 +1,11 @@
 pacman::p_load(TAM, psych, tidyverse, data.table, GLDEX)
 data("data.fims.Aus.Jpn.scored")
-input = data.fims.Aus.Jpn.scored%>% select(starts_with("M")) %>% 
+input = 
+  data.fims.Aus.Jpn.scored%>% select(starts_with("M")) %>% 
   select(-M1PTI12, -M1PTI14, -M1PTI21) 
 
-contexte = data.fims.Aus.Jpn.scored %>% select(-starts_with("M")) %>% 
+contexte = data.fims.Aus.Jpn.scored %>% 
+  select(-starts_with("M")) %>% 
   mutate_all(.funs = as.factor)
 
 DIF =
