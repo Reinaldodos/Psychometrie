@@ -1,0 +1,148 @@
+---
+title: "Analyse dimensionnelle à l'aide d'une matrice totale des corrélations"
+output: html_notebook
+---
+
+```{r}
+pacman::p_load(TAM, psych, tidyverse, data.table)
+```
+
+
+Nous présentons ici la situation où la matrice person-item est suffisamment pleine pour que nous récupérions l'ensemble des coefficients de corrélation polychoriques.
+
+Nous prendrons comme exemple la table *data.fims.Aus.Jpn.scored* présente dans le package *TAM*
+
+```{r}
+data("data.fims.Aus.Jpn.scored", package = "TAM")
+DATA = data.fims.Aus.Jpn.scored %>% select(starts_with("M1"))
+DATA %>% psych::describe()
+```
+
+Nous calculons donc les coefficients polychoriques
+
+```{r}
+TET = DATA %>% psych::polychoric()
+
+TET$rho %>% ggcorrplot::ggcorrplot()
+```
+
+On peut s'attendre à un souci avec les items **M1PTI12**, **M1PTI14** et **M1PTI21**
+
+# Anayse factorielle exploratoire
+la fonction *fa.parallel* réalise une estimation (souvent grossière) des facteurs d'intérêt.
+
+```{r}
+TET$rho %>% fa.parallel(n.obs = nrow(DATA), fa = "fa")
+```
+
+Ici, le test du coude nous inspirerait plutôt 2 facteurs.
+
+```{r}
+FA = TET$rho %>% psych::fa(nfactors = 2,
+                           n.obs = nrow(DATA))
+```
+
+Quelle est la part de variance expliquée par ces 2 facteurs?
+
+```{r}
+FA$Structure
+```
+
+Plus de 50%. C'est satisfaisant.    
+Quelle est la structure des loadings?
+
+```{r}
+FA %>% fa.diagram(cut = .3, sort = T)
+```
+
+On a bien nos 3 items qui sautent. De plus, les 2 facteurs semblent très fortement corrélés. Y aurait-il une dimension unique sous-jacente?
+
+# Analyse confirmatoire: les coefficients *omega*
+L'idée derrière le coefficient *omega* est de découper la variance entre une variance d'ordre supérieure (générale) et des variances résiduelles pour chacun des facteurs.
+
+```{r}
+OMEGA =
+  TET$rho %>% psych::omega(
+    nfactors = 2,
+    n.obs = nrow(DATA),
+    fm = "ml",
+    plot = F
+  )
+OMEGA%>% omega.diagram(cut = .3, gcut = .3, sort = T)
+```
+
+Si le facteur g est signifiant, alors on peut espérer pouvoir réduire le modèle à une seule dimension.
+
+```{r}
+OMEGA %>% summary()
+```
+*ECV* (Explained Common Variance) est la part de variance expliquée par le facteur général, rapportée à la variance totale **expliquée**. elle doit être supérieure à 0.5 pour que l'utilisation des coefficients *omega* soit pertinente.
+
+*Omega Total* représente l'ensemble de la variance expliquée par le modèle. Elle doit être proche de 1.
+
+*Omega Hierarchical* représente la part de variance expliquée par le facteur général. Si elle est voisine de *Omega Total*, alors l'hypothèse d'unidimensionnalité est pertinente.
+
+```{r}
+OMEGA$omega.group %>% rownames_to_column(var = "Dim") %>%
+  group_by(Dim) %>% transmute(Part_general = general / total, 
+                              Part_groupe = group / total) %>% 
+  data.table()
+```
+
+## Réduction du périmètre
+On réduit le périmètre aux items intéressants.
+
+```{r}
+Items_EFA = 
+  FA$loadings %>% unclass %>% as_tibble(rownames = NA) %>% rownames_to_column(var = "item") %>% 
+  gather(key = Dim, value = Loading, -item) %>% 
+  filter(abs(Loading)>.3) %>% distinct(item) %>% droplevels()
+
+TET_EFA = DATA %>% select(Items_EFA$item) %>% psych::polychoric()
+```
+
+et on reproduit l'analyse confirmatoire.
+
+```{r}
+OMEGA =
+  TET_EFA$rho %>% psych::omega(
+    nfactors = 2,
+    n.obs = nrow(DATA),
+    fm = "ml",
+    plot = F
+  )
+OMEGA %>% summary()
+
+OMEGA$omega.group %>% rownames_to_column(var = "Dim") %>%
+  group_by(Dim) %>% transmute(general / total, group / total)
+```
+
+Rajoutons qu'on peut décrire ces modèles sous leur forme bifactorielle :
+```{r}
+OMEGA%>% omega.diagram(cut = .3, gcut = .3, sort = T)
+```
+ou sous leur forme hiérarchique, avec le facteur générale étant une combinaison des facteurs sous-jacents:
+
+```{r}
+OMEGA%>% omega.diagram(cut = .3, gcut = .3, sl = F)
+```
+
+# le *beta* de Revelle
+Pour information, il existe aussi une méthode complète de construction des sous-échelles.
+
+Il s'agit de regrouper de manière ascendante les items par cohérence interne, et de calculer l'*alpha* de Cronbach à chaque étape.    
+Les regroupements perdent de leur sens quand *alpha* se met à décroître.
+
+```{r}
+TET$rho %>% psych::iclust()
+```
+
+On retrouve nos 3 items à exclure.
+
+```{r}
+TET_EFA$rho %>% psych::iclust()
+```
+
+Avec un seuil à 0.8 pour *alpha*, on retrouve notre dimension unique, et un ensemble de sous-échelles, dont nos 2 sous-dimensions.
+
+

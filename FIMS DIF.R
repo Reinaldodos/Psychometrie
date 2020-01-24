@@ -25,4 +25,5 @@ DIFS =
   group_by(item, facet) %>% 
   summarise(DIF = max(xsi)-min(xsi)) %>% ungroup 
 
-DIFS
+DIFS %>% 
+  spread(key = facet, value = DIF)

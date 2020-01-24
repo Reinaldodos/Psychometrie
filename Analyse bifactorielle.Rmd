@@ -1,0 +1,202 @@
+---
+title: "Analyse dimensionnelle en présence d'une matrice creuse"
+output: html_notebook
+---
+
+```{r}
+pacman::p_load(TAM, psych, tidyverse, data.table)
+```
+
+Nous présentons ici la situation où la matrice person-item est creuse, rendant impossible le calcul de l'ensemble des coefficients de corrélation polychoriques.
+
+Nous prendrons comme exemple la table *data.fims.Aus.Jpn.scored* présente dans le package *TAM*. La matrice est pleine, mais elle sera traitée comme étant creuse.
+
+```{r}
+data("data.fims.Aus.Jpn.scored", package = "TAM")
+DATA = data.fims.Aus.Jpn.scored %>% select(starts_with("M1"))
+DATA %>% psych::describe()
+```
+
+Le package *TAM* offre un outil de calcul de modèle factoriel, en utilisant la [forme en échelon](https://en.wikipedia.org/wiki/Row_echelon_form) des matrices.
+
+Cette fonction est très gourmande en calcul, puisqu'elle réalise une analyse dimensionnelle à chaque itération!
+
+De plus, cela implique d'avoir une idée du nombre de dimensions à rechercher **en amont**
+
+# Analyses factorielle exploratoire
+
+On commence par calculer un modèle exploratoire, en faisant l'hypothèse de facteurs non corrélés (rotation orthogonale).
+
+```{r}
+Start = Sys.time()
+Modele = tam.fa(resp = DATA,
+                irtmodel = "efa",
+                nfactors = 2, 
+                control = list(progress = F,
+                               increment.factor=1.2))
+Sys.time() - Start
+```
+
+Ce modèle donne donc 2 dimensions orthogonale. On récupère également le produit d'une rotation oblique (*oblimin*):
+
+```{r}
+Modele$efa.oblimin$loadings %>% fa.diagram(simple = F, cut = .3)
+```
+
+On retrouve nos 3 items à exclure.
+
+Ce modèle retourne également le résultat d'une transformation de Schmid-Leiman sur la rotation oblique précédente.
+
+```{r}
+Modele$B.SL %>% omega.diagram(sl = T, cut = .3, gcut = .3)
+```
+
+Cela nous donne une assez bonne idée de ce que pourrait être notre analyse confirmatoire. Mais quels en seraient les coefficients?
+
+```{r}
+Modele$meas
+```
+
+On retrouve des coefficients légèrement surestimés, mais dans l'ordre de grandeur de l'analyse de la matrice pleine.
+
+# Analyse bifactorielle confirmatoire
+On réduit immédiatement le périmètre aux items saturant un tant soit peu le facteur g hypothétique.
+
+```{r}
+Items_high_order =
+  cbind.data.frame(item = rownames(Modele$B.SL),
+                   Modele$B.SL) %>%
+  pivot_longer(cols = -item, names_to = "Factor", values_to = "loadings") %>% 
+  filter(abs(loadings)>.3) %>% 
+  pivot_wider(names_from = "Factor", values_from = "loadings") %>% 
+  drop_na("g") %>% select(-g)
+Items_high_order
+```
+
+Et on les attribue à une dimension. Le modèle bifactoriel implique que les facteurs résiduels soient orthogonaux: un item ne peut saturer que le facteur général et une dimension résiduelle.    
+A noter qu'un item peut ne saturer que le facteur général.
+
+```{r}
+Dims = 
+  Items_high_order %>%
+  pivot_longer(
+    cols = -item,
+    names_to = "Factor",
+    values_to = "loadings",
+    values_drop_na = T
+  ) %>%
+  left_join(x = Items_high_order %>% select(item),
+            by = "item") %>% 
+  pull(Factor)
+Dims
+```
+
+Et on applique la même fonction, en indiquant le choix du modèle.
+
+```{r}
+Start = Sys.time()
+ModeleBifac =
+  DATA %>%
+  select(Items_high_order$item %>% as.character()) %>%
+  tam.fa(
+    irtmodel = "bifactor2",
+    dims = Dims,
+    control = list(increment.factor = 1.2,
+                   progress = FALSE)
+  )
+Sys.time() - Start
+```
+
+et on récupère les statistiques de ce modèle.
+
+```{r}
+ModeleBifac %>% summary()
+```
+
+Encore une fois, des paramètres légèrement surestimés. Mais l'hypothèse d'unidimensionnalité semble tenir.
+
+# Analyse unidimensionnelle
+On va donc poursuivre avec une étude unidimensionnelle, sur le périmètre restreint.
+
+```{r}
+Start = Sys.time()
+Modele_Uni =
+  DATA %>%
+  select(Items_high_order$item %>% as.character()) %>%
+  tam.mml.2pl(irtmodel = "2PL",
+              control = list(increment.factor = 1.2,
+                             progress = FALSE))
+Sys.time() - Start
+```
+
+et on compare les 3 modèles!
+
+```{r}
+IRT.compareModels(ModeleBifac, Modele_Uni, Modele)
+```
+
+Le modèle bifactoriel semble meilleur que le modèle unidimensionnel selon tous les indicateurs, mais pas de manière significative.   
+Par contre, le modèle à 2 dimensions est significativement plus faible.
+
+# Vérification de l'hypothèse d'unidimensionnalité
+## Par les paramètres d'item
+
+Une façon de vérifier tout cela est de comparer les paramètres d'item pour les deux modèles. Si l'hypothèse d'unidimensionnalité tient, il doit y avoir peu d'écart entre les paramètres d'item sous les deux modèles.    
+Il s'agit ici de comparer le facteur général du modèle bifactoriel avec le modèle unidimensionnel.
+
+```{r}
+list(Bifac = ModeleBifac,
+     Uni = Modele_Uni) %>%
+  map(.f = ~ .$item) %>%
+  bind_rows(.id = "Modele") %>%
+  ggplot(mapping = aes(x = AXsi_.Cat1, y = B.Cat1.Dim1)) +
+  geom_point(mapping = aes(shape = Modele, colour = item)) +
+  theme(legend.position = "bottom") +
+  xlim(-3, 3) + ylim(0, 3)
+```
+
+**Très** solide! L'écart le plus fort est sur l'item *M1PTI23*, qui était *borderline* sur le facteur général.
+
+L'écart s'explique par le fait que dans le modèle unidimensionnel, la variance résiduelle est incluse dans la dimension, et pas dans le modèle bifactoriel.
+
+## Par l'estimateur des scores
+Le modèle bifactoriel n'est pas compatible avec le WLE. Néanmoins, on peut s'appuyer sur l'EAP pour comparer les scores sous les deux modèles.
+
+```{r}
+KOR = 
+  list(Bifac = ModeleBifac,
+     Uni = Modele_Uni) %>% 
+  map(.f = ~.$person) %>% 
+  reduce(.f = full_join, by = "pid")%>% 
+  select(pid, starts_with("EAP")) %>% 
+  select(-pid) %>% cor()
+```
+
+On retrouve:
+
++   le score unidimensionnel: **EAP**
++   le score du facteur général: **EAP.Dim1**
++   le score des deux facteurs résiduels: **EAP.Dim2** et **EAP.Dim3**
+
+Quelle est la corrélation (avec significativité) entre ces différents scores?
+
+```{r}
+KOR %>%
+  ggcorrplot::ggcorrplot(
+    type = "upper",
+    hc.order = T,
+    lab = T,
+    digits = 3,
+    p.mat = ggcorrplot::cor_pmat(KOR),
+    sig.level = 0.05
+  )
+
+```
+
+On en conclut que:
+
++   les scores du facteur général et du modèle unidimensionnel sont monstrueusement corrélés. Cela valide l'hypothèse d'unidimensionnalité
++   les deux facteurs résiduels sont très légèrement corrélés négativement. Ce n'est pas incohérent, puisqu'ils représentent ce qui n'est pas commun aux deux dimensions de l'EFA.
++   il n'y a pas de corrélation significative entre ces deux facteurs et la dimension principale. Là aussi, c'est très cohérent, puisque ces deux facteurs sont ce qui n'est **pas** dans le facteur général.
+
+
