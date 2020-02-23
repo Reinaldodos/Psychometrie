@@ -59,9 +59,10 @@ SKOR =
 cbind.data.frame(Scores %>% data.table() %>% select(thetha_reg = theta),
                  SKOR %>% select(theta),
                  Modele_EAP=Modele$person$EAP,
-                 MODI_EAP=MODI$person$EAP) %>%
+                 MODI_EAP=MODI$person$EAP,
+                 MODI_resid = SKOR$.resid) %>%
   cor() %>% 
-  ggcorrplot::ggcorrplot(hc.order = T)
+  ggcorrplot::ggcorrplot(hc.order = T, lab = T, type="lower")
 
 
 
@@ -69,3 +70,13 @@ plot(SKOR$theta, SKOR$.resid)
 
 
 IRT.compareModels(Modele, MODI)
+
+list(latreg=Modele,groups=MODI) %>% 
+  map(.f = ~.$item_irt) %>% 
+  bind_rows(.id = "Modele") %>% 
+  gather(key = VAR, value = VAL, alpha, beta) %>% 
+  spread(key = Modele, value = VAL) %>% 
+  ggplot(mapping = aes(x = latreg, y = groups))+
+  geom_point() + geom_abline() + geom_smooth(method = "lm") +
+  facet_wrap(~ VAR, scales = "free")
+
