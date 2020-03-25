@@ -66,12 +66,12 @@ cbind.data.frame(Scores %>% data.table() %>% select(thetha_reg = theta),
 
 
 
-plot(SKOR$theta, SKOR$.resid)
+plot(SKOR$theta, Scores$theta)
 
 
 IRT.compareModels(Modele, MODI)
 
-list(latreg=Modele,groups=MODI) %>% 
+list(latreg = Modele, groups = MODI) %>% 
   map(.f = ~.$item_irt) %>% 
   bind_rows(.id = "Modele") %>% 
   gather(key = VAR, value = VAL, alpha, beta) %>% 
