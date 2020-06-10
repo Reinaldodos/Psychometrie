@@ -1,0 +1,153 @@
+---
+title: 'DIF: la fonction tam.mml.facet'
+author: "Reinaldo DOS SANTOS"
+date: "10/06/2020"
+output: 
+  html_document: 
+    code_folding: show
+    css: M:/prj-depp-evanat/1. Sixieme/1. Debut de 6/7. Statistiques/1-Programmmes_alternative/style_Restitution_MEN.css
+    df_print: paged
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: no
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Les Fonctionnements Différentiels d'Item sont actuellement traités en réalisant un equating mean-mean sur les items d'ancrage, et en retirant les items qui s'écartent trop d'une année sur l'autre.   
+Néanmoins, cette mesure présente des limites, notamment en cas de groupes multiples (comme les strates). De plus, on écarte complètement la question de l'erreur de mesure (des paramètres d'item) ou  de l'erreur d'equating (*linking error*).
+
+Il existe pléthore de méthodes pour calculer des DIF. Le package *TAM* en propose une en particulier: le calcul par facettage^[https://doi.org/10.1207/s15327841mpee1004_1].
+
+Ce rapport a pour but de présenter cette méthode à partir d'un jeu de données d'exemple, et de présenter son intérêt.
+
+# Données d'exemple
+A titre d'exemple, on utilisera un jeu de données présent dans le package *TAM*. Il s'agit des scores à l'enquête FIMS^[The First International Mathematics Study, conducted in the 1960s, involved 13-year-old students from 10 countries and students in their last year of secondary school from 10 countries: https://nces.ed.gov/pubs92/web/92011.asp]
+
+On charge donc ce jeu, ne contenant le données que de deux pays: l'Australie et le Japon.
+
+```{r}
+pacman::p_load(TAM, psych, tidyverse)
+data("data.fims.Aus.Jpn.scored")
+```
+
+On distingue la matrice Person-Item
+
+```{r}
+input = 
+  data.fims.Aus.Jpn.scored %>% select(starts_with("M")) %>% 
+  mutate_all(type.convert)
+
+input %>% psych::describe()
+```
+
+et les données de contexte
+
+```{r}
+contexte = 
+  data.fims.Aus.Jpn.scored %>% 
+  select(-starts_with("M")) %>% 
+  mutate_all(.funs = as.factor)
+
+contexte %>% summary()
+```
+
+# Multifaceted Rasch model
+A l'aide de la fonction *tam.mml.facet*, on calcule un modèle de Rasch (1D) avec une régression latente non pas sur les élèves, mais sur les items.   
+Comme il s'agit d'un modèle de Rasch, il ne détectera que les DIF uniformes (variabilité sur la difficulté) et pas les DIF non uniformes (variabilité sur la pente)
+
+```{r}
+DIF =
+  tam.mml.mfr(
+    resp = input,
+    formulaA =  ~ item * (SEX + country),
+    facets = contexte, 
+    verbose = F
+  )
+```
+
+On voit déjà ici un élément intéressant: on peut décomposer le DIF en plusieurs variables. Ici on calcule conjointement la part de variabilité imputable au sexe et au pays.
+
+On récupère, dans le sous-objet **xsi.facets**, les paramètres d'item avec les facettes.
+
+```{r}
+DIF$xsi.facets
+```
+
+# Etude des DIFs
+
+On remarque également qu'on obtient une erreur de mesure pour cette estimation. On peut donc z-standardiser les paramètres.
+
+```{r}
+DIFS = 
+  DIF$xsi.facets %>%
+  filter(str_detect(string = facet, pattern = "item:")) %>%
+  mutate(z_score = xsi / se.xsi) %>%
+  mutate(p.value = pnorm(q = -abs(z_score))) %>%
+  tidyr::extract(col = parameter,
+                 into = c("item", "selon"),
+                 regex = "(.*):(.*)") 
+
+DIFS %>% arrange(item)
+```
+
+graphiquement: 
+
+```{r}
+DIFS %>%
+  ggplot(mapping = aes(y = item, colour = selon)) +
+  geom_linerange(
+    mapping = aes(xmin = xsi - 1.96 * se.xsi,
+                  xmax = xsi + 1.96 * se.xsi),
+    position = position_dodge(width = .2)
+  ) +
+  geom_vline(xintercept = 0) +
+  facet_wrap( ~ facet) +
+  theme(legend.position = "bottom")
+```
+
+On voit d'abord qu'on a **beaucoup** de DIFs! Est-ce qu'on peut quantifier ces DIFs?
+
+Ici, nous n'avons que deux groupes à chaque fois. On peut donc faire une différence de moyenne, et obtenir une erreur standard selon   
+
+<center> $\sigma_{diff} = \sqrt(\sigma_{1}^2+\sigma_{2}^2)$ </center>
+
+```{r}
+DIFF_DIFS = 
+  DIFS %>%
+  group_by(item, facet) %>%
+  summarise(DIF = max(xsi) - min(xsi),
+            DIF_error = sqrt(sum(se.xsi^2)))
+DIFF_DIFS
+```
+
+soit
+
+```{r}
+DIFF_DIFS %>% 
+  ggplot(mapping = aes(y = item, colour = facet)) +
+  geom_linerange(
+    mapping = aes(xmin = DIF - 1.96 * DIF_error,
+                  xmax = DIF + 1.96 * DIF_error),
+    position = position_dodge(width = .2)
+  ) +
+  geom_vline(xintercept = c(0,.5))
+```
+
+# Discussion
+Cette méthode présente un avantage partagé avec la méthode actuelle, et deux supplémentaires:
+
+- elle est très simple à implémenter, et peu gourmande en calcul.
+- elle permet d'obtenir une erreur de mesure, ce qui autorise des calculs de significativité des DIF
+- elle permet de réaliser des DIF complexes, sur plusieurs variables en même temps. 
+
+Il y a toutefois deux interrogations qui ne sont pas couvertes par cette méthode:
+
+- quid des DIF non uniformes, c'est-à-dire où l'item voit sa discrimination varier entre les groupes?
+- elle est intolérante aux valeurs manquantes: il faut que chaque item soit présent dans **chaque groupe**. Cela obligera de toute façon à calculer des DIF 2 à 2 pour les cohortes.
+
+
+
