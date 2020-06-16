@@ -1,7 +1,9 @@
 pacman::p_load(TAM, psych, tidyverse, data.table, GLDEX)
 data("data.fims.Aus.Jpn.scored")
 input = 
-  data.fims.Aus.Jpn.scored %>% select(starts_with("M"))
+  data.fims.Aus.Jpn.scored %>% select(starts_with("M")) %>% 
+  mutate_all(type.convert)
+
 contexte = data.fims.Aus.Jpn.scored %>% 
   select(-starts_with("M")) %>% 
   mutate_all(.funs = as.factor)
