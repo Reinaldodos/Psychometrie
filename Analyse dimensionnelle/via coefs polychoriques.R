@@ -7,13 +7,14 @@ TET$rho %>% fa.parallel(n.obs = nrow(DATA), fa = "fa")
 FA = TET$rho %>% psych::fa(nfactors = 2,
                            n.obs = nrow(DATA),
                            fm = "ml")
-FA %>% fa.diagram(cut = .3, sort = T)
+FA %>% fa.diagram(cut = .3, sort = T, simple = F)
 FA$Structure
 
 Items_EFA = 
-  FA$loadings %>% unclass %>% as_tibble(rownames = NA) %>% rownames_to_column(var = "item") %>% 
-  gather(key = Dim, value = Loading, -item) %>% 
-  filter(abs(Loading)>.3) %>% distinct(item) %>% droplevels()
+  FA$loadings %>% unclass() %>%
+  data.frame() %>% rownames_to_column(var = "item") %>%
+  gather(key = Dim, value = Loading,-item) %>%
+  filter(abs(Loading) > .3) %>% distinct(item) %>% droplevels()
 
 TET_EFA = DATA %>% select(Items_EFA$item) %>% psych::polychoric()
 
