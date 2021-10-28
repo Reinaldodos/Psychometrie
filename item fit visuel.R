@@ -20,7 +20,8 @@ FitPlot <- function(model, data, ...) {
 pacman::p_load(TAM, psych, tidyverse, data.table, GLDEX)
 data("data.fims.Aus.Jpn.scored")
 input = 
-  data.fims.Aus.Jpn.scored %>% select(starts_with("M")) 
+  data.fims.Aus.Jpn.scored %>% select(starts_with("M"))
+  select(-M1PTI12, -M1PTI14, -M1PTI21)
 
 input %>% psych::describe()
 
@@ -39,9 +40,10 @@ IRT.compareModels(output$Rasch, output$`2PL`, output$`3PL`)
 
 outputFIT %>% map(.f = ~ .$stat.itempair %>% filter(abs(aQ3) > .2))
 
+output$Rasch %>% plot()
 
+output$Rasch %>% FitPlot(data = input)
 output$Rasch %>% FitPlot(data = input)
 output$`2PL` %>% FitPlot(data = input)
 
 outputFIT$`2PL`$chisquare.itemfit
-output$`2PL`$item_irt
