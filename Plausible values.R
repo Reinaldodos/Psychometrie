@@ -13,7 +13,7 @@ KOR %>% fa.parallel(n.obs = nrow(DATA))
 
 FANAL = KOR %>% fa(nfactors = 5, n.obs = nrow(DATA))
 FANAL$crms
-FANAL %>% fa.diagram()
+FANAL %>% fa.diagram(simple = F)
 
 OMEGA =
   DATA %>%
@@ -67,6 +67,8 @@ Confidence <- function(data, var) {
     spread(key = names, value = x) %>%
     return()
 }
+
+Scores_PV = Plausible_Values(Modele = Modele, N_pv = 10)
 
 Moyennes =
   Plausible_Values(Modele = Modele, N_pv = 100) %>%

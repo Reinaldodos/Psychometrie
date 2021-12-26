@@ -52,8 +52,8 @@ SKOR =
   tam.wle() %>% data.table() %>%
   inner_join(contexte %>%
                rowid_to_column(var = "pid")) %>% 
-  # lm(formula = theta~SEX*country) %>% 
-  lme4::lmer(formula = theta~SEX*country+(1|country)) %>% 
+  lm(formula = theta~SEX*country) %>%
+  # lme4::lmer(formula = theta~SEX*country+(1|country)) %>% 
   broom::augment()
 
 cbind.data.frame(Scores %>% data.table() %>% select(thetha_reg = theta),
@@ -65,8 +65,14 @@ cbind.data.frame(Scores %>% data.table() %>% select(thetha_reg = theta),
   ggcorrplot::ggcorrplot(hc.order = T, lab = T, type="lower")
 
 
-
-plot(SKOR$theta, Scores$theta)
+cbind.data.frame(groups = SKOR$theta, latreg = Scores$theta) %>% 
+  cbind.data.frame(contexte) %>% 
+  ggplot(mapping = aes(x = groups, y = latreg,
+                       colour = as.factor(country),
+                       shape = as.factor(SEX))) +
+  geom_smooth() +
+  geom_abline()+
+  facet_wrap(~country+SEX)
 
 
 IRT.compareModels(Modele, MODI)

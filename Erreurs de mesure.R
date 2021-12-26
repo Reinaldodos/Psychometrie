@@ -21,7 +21,7 @@ DELTA_EAP =
 MOdele_PV = MOdele %>% tam.pv(nplausible = 10)
 DELTA_PV =
   MOdele_PV$pv %>%
-  gather(key = PV, value = score,-pid) %>%
+  gather(key = PV, value = score, -pid) %>%
   mutate(Groupe = nchar(pid)) %>%
   group_by(Groupe, PV) %>% summarise(M = mean(score)) %>%
   summarise(DELTA_PV = sd(M))
@@ -36,12 +36,14 @@ DELTA_theta =
   mutate(DELTA = error ^ 2 * (1 / n_distinct(pid)) ^ 2) %>%
   summarise(DELTA = sqrt(sum(DELTA)))
 
-DELTAs = 
-list(DELTA_theta, DELTA_PV, DELTA_EAP) %>% 
-  reduce(.f = inner_join, by = "Groupe") 
+
+DELTAs =
+  list(DELTA_theta, DELTA_PV, DELTA_EAP) %>%
+  reduce(.f = inner_join, by = "Groupe")
+
 
 MOdele$person %>%
-  distinct(pid) %>% 
-  count(Groupe = nchar(pid), name = "Nb_pid") %>% 
-  inner_join(y = DELTAs, by = "Groupe") %>% 
+  distinct(pid) %>%
+  count(Groupe = nchar(pid), name = "Nb_pid") %>%
+  inner_join(y = DELTAs, by = "Groupe") %>%
   as_tibble()
