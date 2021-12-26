@@ -1,5 +1,5 @@
 FitPlot <- function(model, data, ...) {
-  Scores = model %>% tam.wle() %>% data.table()
+  Scores = model %>% TAM::tam.wle() %>% data.table::data.table()
   
   Param = model$item_irt %>% as.list()
   names(Param$alpha) = Param$item
