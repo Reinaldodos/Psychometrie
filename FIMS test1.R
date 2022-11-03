@@ -27,21 +27,27 @@ input =
 
 TET = input %>% psych::polychoric() %>% .$rho
 TET %>% ggcorrplot::ggcorrplot(hc.order = T)
+
+TET %>% nfactors(rotate = "oblimin", n.obs = nrow(input))
+
 TET %>% fa.parallel(n.obs = 6371)
 
-TET %>% fa(nfactors = 5) %>% fa.diagram(cut = .3)
+TET %>% fa(nfactors = 2) %>% fa.diagram(cut = .3)
 
-OMEGA = TET %>% omega(nfactors = 5, plot = F) 
+OMEGA = TET %>% omega(nfactors = 2, plot = F) 
 OMEGA %>% summary()
-OMEGA %>% omega.diagram(simple = T, cut = .3, gcut = .3, digits = 2)
+OMEGA %>% omega.diagram(simple = T, cut = .3, 
+                        gcut = .3, digits = 2)
 
 input =
-  input %>%
-  select(-M1PTI12,-M1PTI14,-M1PTI21) 
+  OMEGA$schmid$sl %>% as.data.frame() %>% 
+    rownames_to_column(var = "item") %>% 
+    filter(g > .3) %>% pull(item) %>% 
+    select(.data = input, .)
 
 input %>% fa.parallel(cor = "poly")  
 
-input %>% omegaSem(poly = T, nfactors = 2) %>% summary()
+input %>% omegaSem(poly = T, nfactors = 4) %>% summary()
 
 input %>% names
 Dims = c(1, 1, 1, 1, 2, 1, 2, 1, 2, 2, 1)
@@ -80,7 +86,7 @@ keys.list =
 
 unidim(x = input, keys.list = keys.list)
 # TCT: internal consistency -----------------------------------------------
-input %>% psych::polychoric() %>% .$rho %>%  psych::alpha()
+input %>% psych::polychoric() %$% rho %>% psych::alpha()
 
 # TCT: sensibilité --------------------------------------------------------
 input %>% psych::describe()
@@ -99,9 +105,9 @@ IRT.compareModels(output$Rasch, output$`2PL`, output$`3PL`)
 outputFIT = map(.x = output, .f = IRT.modelfit)
 outputFIT %>% map(summary)
 
-
 outputFIT %>% map(.f = ~ .$stat.itempair %>% filter(abs(aQ3) > .2))
 
+output$Rasch %>% FitPlot(data = input)
 output$`2PL` %>% FitPlot(data = input)
 
 outputFIT$`2PL`$chisquare.itemfit
@@ -135,7 +141,6 @@ data.fims.Aus.Jpn.scored %>%
   geom_boxplot() +
   coord_flip()
 
-
 # Plausible values --------------------------------------------------------
 Plausible_Values <- function(Modele, N_pv) {
   PV = Modele %>% tam.pv(nplausible = N_pv)
@@ -152,7 +157,7 @@ Confidence <- function(data, var) {
     return()
 }
 
-PV = Plausible_Values(Modele = output$`2PL`, N_pv = 100)
+PV = Plausible_Values(Modele = output$`2PL`, N_pv = 5)
   
 data.fims.Aus.Jpn.scored %>%
   select(-starts_with("M1")) %>%

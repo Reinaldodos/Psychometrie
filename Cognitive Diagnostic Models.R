@@ -46,4 +46,3 @@ plot(choix, ask = F)
 
 CDM::skill.cor(object = choix) %$% cor.skills %>%
   ggcorrplot::ggcorrplot(hc.order = TRUE, lab = T)
-

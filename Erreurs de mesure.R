@@ -4,8 +4,6 @@ input =
   data.fims.Aus.Jpn.scored %>% select(starts_with("M")) %>%
   mutate_all(type.convert)
 
-
-
 MOdele =
   input %>%
   TAM::tam.mml.2pl()
@@ -18,7 +16,7 @@ DELTA_EAP =
   mutate(DELTA = SD.EAP ^ 2 * (1 / n_distinct(pid)) ^ 2) %>%
   summarise(DELTA_EAP = sqrt(sum(DELTA)))
 
-MOdele_PV = MOdele %>% tam.pv(nplausible = 10)
+MOdele_PV = MOdele %>% tam.pv(nplausible = 5)
 DELTA_PV =
   MOdele_PV$pv %>%
   gather(key = PV, value = score, -pid) %>%

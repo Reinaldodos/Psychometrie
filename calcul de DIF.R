@@ -3,16 +3,15 @@ pacman::p_load(rio, tidyverse, data.table, TAM, psych)
 data("data.cqc05")
 
 input = data.cqc05 %>% select(starts_with("A"))
-facets = data.cqc05 %>% select(-starts_with("A")) %>% data.table()
+facets = data.cqc05 %>% select(-starts_with("A")) 
 
 formulaA <-  ~ item * (gender + level + gbyl)
 
 mod2 <-
-  tam.mml.mfr(
+  TAM::tam.mml.mfr(
     resp = input,
-    facets = as.data.frame(facets),
-    formulaA = formulaA,
-    irtmodel = "2PL"
+    facets = facets,
+    formulaA = formulaA
   )
 
 mod1 <-
@@ -28,10 +27,10 @@ SAFE =
          starts_with("A"),
          na.rm = T) %>%
   count(gender, level, gbyl, item) %>%
-  filter(n >= 400) %>%
+  filter(n >= 150) %>%
   spread(key = item, value = n) %>% drop_na() %>% names
 
-DATA = data.cqc05 %>% select(SAFE)
+DATA = data.cqc05 %>% select(all_of(SAFE))
 
 input = DATA %>% select(starts_with("A"))
 facets = DATA %>% select(-starts_with("A")) %>% data.table()
@@ -56,5 +55,8 @@ mod2$xsi.facets %>%
   mutate(CI = 1 - p.value) %>%
   filter(CI > .95) %>%
   group_by(item, facet) %>%
-  summarise(DIF=max(xsi)-min(xsi)) %>%
+  summarise(DIF = max(xsi) - min(xsi), 
+            .groups = "drop") %>%
   data.table() %>% arrange(desc(DIF))
+
+

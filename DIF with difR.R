@@ -4,8 +4,7 @@ input = data.fims.Aus.Jpn.scored %>% select(starts_with("M1"))
 contexte = data.fims.Aus.Jpn.scored %>% select(-starts_with("M1"))
 
 difR::genDichoDif(Data = input, 
-                  group = contexte$country,
+                  group = contexte$SEX,
                   focal.names = 1,
-                  engine = "lme4",
                   method = "genLogistic", 
                   type = "both")

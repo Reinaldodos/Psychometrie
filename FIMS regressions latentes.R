@@ -3,7 +3,9 @@ data("data.fims.Aus.Jpn.scored")
 input = data.fims.Aus.Jpn.scored%>% select(starts_with("M")) %>% 
   select(-M1PTI12, -M1PTI14, -M1PTI21) 
   
-contexte = data.fims.Aus.Jpn.scored %>% select(-starts_with("M")) %>% 
+contexte = 
+  data.fims.Aus.Jpn.scored %>%
+  select(-starts_with("M")) %>% 
   mutate_all(.funs = as.factor)
 
 Modele =
@@ -85,4 +87,5 @@ list(latreg = Modele, groups = MODI) %>%
   ggplot(mapping = aes(x = latreg, y = groups))+
   geom_point() + geom_abline() + geom_smooth(method = "lm") +
   facet_wrap(~ VAR, scales = "free")
+
 

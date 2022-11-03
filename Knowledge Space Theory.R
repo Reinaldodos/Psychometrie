@@ -10,11 +10,15 @@ input = CDM::fraction.subtraction.data
 # output %>% saveRDS(file = "IITA fraction.rds")
 output = read_rds(file = "IITA fraction.rds")
 
-output$implications %>% hasse(items = ncol(input))
-KST = output$implications %>% imp2state(items = ncol(input))
+hasse(imp = output$implications,
+      items = ncol(input))
+
+KST = imp2state(imp = output$implications,
+                items = ncol(input))
 
 require(kst)
-KST = KST %>% as.famset(as.letters = FALSE)
+KST = as.famset(m = KST,
+                as.letters = FALSE)
 KST = kst::kstructure(x = KST)
 kst::kdomain(x = KST)
 
@@ -30,4 +34,3 @@ Rgraphviz::plot(KSP)
 kst::lpath_is_gradation(x = KSP)
 kst::lpath(x = KSP)
 
-names(input) = 1:ncol(input)
