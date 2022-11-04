@@ -30,9 +30,9 @@ TET %>% ggcorrplot::ggcorrplot(hc.order = T)
 
 TET %>% nfactors(rotate = "oblimin", n.obs = nrow(input))
 
-TET %>% fa.parallel(n.obs = 6371)
+TET %>% fa.parallel(n.obs = 6371, fa = "fa")
 
-TET %>% fa(nfactors = 2) %>% fa.diagram(cut = .3)
+TET %>% fa(nfactors = 2) %>% fa.diagram(cut = .3, simple = F)
 
 OMEGA = TET %>% omega(nfactors = 2, plot = F) 
 OMEGA %>% summary()
@@ -43,7 +43,7 @@ input =
   OMEGA$schmid$sl %>% as.data.frame() %>% 
     rownames_to_column(var = "item") %>% 
     filter(g > .3) %>% pull(item) %>% 
-    select(.data = input, .)
+    select(.data = input, all_of(.))
 
 input %>% fa.parallel(cor = "poly")  
 
