@@ -13,7 +13,7 @@ NFACTORS =
                               n.obs = nrow(DATA))
 
 
-FA = TET$rho %>% psych::fa(nfactors = 1,
+FA = TET$rho %>% psych::fa(nfactors = 2,
                            n.obs = nrow(DATA),
                            rotate = "oblimin",
                            fm = "ml")
@@ -21,6 +21,7 @@ FA = TET$rho %>% psych::fa(nfactors = 1,
 FA %>% fa.diagram(cut = .3, sort = T, simple = F)
 FA$Structure
 
+# on ne conserve que les items avec un loading > 0.3
 Items_EFA = 
   FA$loadings %>% unclass() %>%
   data.frame() %>% rownames_to_column(var = "item") %>%
@@ -36,15 +37,28 @@ FA = TET_EFA$rho %>% psych::fa(nfactors = 3,
 FA %>% fa.diagram(cut = .3, sort = T)
 FA$Structure
 
+
+# Facteurs corrélés = modele hiérarchique ---------------------------------
+
+FA$Phi %>% ggcorrplot::ggcorrplot(lab = T)
+
+FA$Phi %>% 
+  psych::fa(nfactors = 1) %>% 
+  fa.diagram(simple = F)
+
+# Modeles hierarchiques --------------------------------------------------
+
+
 OMEGA =
-  TET_EFA$rho %>% psych::omega(
+  TET_EFA$rho %>% 
+  psych::omega(
     nfactors = 3,
     n.obs = nrow(DATA),
     fm = "ml",
     plot = F
   )
 OMEGA %>% summary()
-OMEGA%>% omega.diagram(cut = .3, gcut = .3, sort = T)
+OMEGA%>% omega.diagram(cut = .3, gcut = .3, sl = F)
 OMEGA%>% omega.diagram(cut = .3, gcut = .3, sl = T)
 
 OMEGA$omega.group %>% rownames_to_column(var = "Dim") %>%

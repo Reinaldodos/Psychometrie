@@ -5,8 +5,8 @@ DATA = data.fims.Aus.Jpn.scored %>% select(starts_with("M1"))
 
 Modele = tam.fa(resp = DATA,
                 irtmodel = "efa",
-                nfactors = 2, 
-                control = list(increment.factor=1.2))
+                nfactors = 3, 
+                control = list(increment.factor = 1.2))
 
 Modele$meas
 
@@ -56,7 +56,7 @@ Modele_Uni =
   tam.mml.2pl(irtmodel = "2PL",
               control = list(increment.factor = 1.2))
 
-FIT=Modele_Uni %>% IRT.modelfit() 
+FIT = Modele_Uni %>% IRT.modelfit()
 FIT %>% summary()
 FIT$chi2.stat %>%
   filter(p.holm < 1) %>%
